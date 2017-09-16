@@ -2,9 +2,15 @@
   (:import (net.fortuna.ical4j.model Calendar DateTime Dur)
            (net.fortuna.ical4j.model.component VEvent)
            (net.fortuna.ical4j.model.property CalScale ProdId Uid Version XProperty Duration Description Method Url Location Organizer Name)
-           (net.fortuna.ical4j.data CalendarOutputter)
+           (net.fortuna.ical4j.data CalendarOutputter CalendarBuilder)
            (java.io StringWriter)
-           (java.util Date TimeZone)))
+           (java.util Date TimeZone))
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
+            [clj-time.core :as t]
+            [clj-time.local :as l]
+            [clj-time.format :as f]
+            ))
 
 (defn create-cal
   "create an empty calendar container. it is assumed to be
@@ -20,7 +26,7 @@
     (.add props Method/PUBLISH)
     (.add props CalScale/GREGORIAN)
     (if ttl (.add props (XProperty. "X-PUBLISHED-TTL" ttl)))
-    ; turns out that NAME is not valid for Calendar, only events
+                                        ; turns out that NAME is not valid for Calendar, only events
     (if name (.add props (XProperty. "X-WR-CALNAME" name)))
     c))
 
@@ -89,3 +95,71 @@
         output (.output co cal sw)
         _ (.close sw)]
     (.replaceAll (.toString sw) "\r" "")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Additional functions to manipulate calender as
+;; clojure data structures
+
+(def vdate-fmt
+  "Format of dates in VEVENT in leave calendar. "
+  (f/formatter :basic-date))
+
+(defn parse-cal
+  "Parse a calendar from any stream supported by clojure.java.io/input-stream"
+  [instream]
+  (.build (CalendarBuilder.) (io/input-stream instream)))
+
+(defn cal->clj
+  "Return a hash-map representing the calendar so it can be used in clojure code without Java interop all the time"
+  [cal]
+  ;;TODO
+  ()
+  )
+
+(defmacro get-event-prop
+
+  "Macro to look up calendar properties by translating the keyword name to the 
+   corresponding Java getter() name. 
+   Returns an array with key and value.
+
+   (And, yes, this is mostly to give me a reason to play with macros ;-) )"
+  
+  [vevent property & [date-fmt]]
+  (let [getter (symbol (str ".get" (str/replace (-> property
+                                                    (name)
+                                                    (str/capitalize))
+                                                #"-([a-z])"
+                                                #(str/upper-case (second %1)))))]
+    `(let [result# (~getter ~vevent)]
+       (if result#
+         (let [val# (.getValue result#)]
+           [~property (if ~date-fmt (f/parse ~date-fmt val#) val#)])))))
+
+(defn- vevent->clj
+  "Turn an event into a hash-map"
+  [vevent]
+  (->  {} 
+       (merge  (get-event-prop  vevent :summary )) 
+       (merge  (get-event-prop  vevent :description ))
+       (merge  (get-event-prop  vevent :start-date vdate-fmt)) 
+       (merge  (get-event-prop  vevent :end-date vdate-fmt)) 
+       (merge  (get-event-prop  vevent :duration ))
+       (merge  (get-event-prop  vevent :created ))
+       (merge  (get-event-prop  vevent :date-stamp )) 
+       (merge  (get-event-prop  vevent :last-modified)) 
+       (merge  (get-event-prop  vevent :geographic-pos ))
+       (merge  (get-event-prop  vevent :location ))
+       (merge  (get-event-prop  vevent :organizer ))
+       (merge  (get-event-prop  vevent :priority ))
+       (merge  (get-event-prop  vevent :recurrence-id)) 
+       (merge  (get-event-prop  vevent :sequence ))
+       (merge  (get-event-prop  vevent :transparency ))
+       (merge  (get-event-prop  vevent :uid ))
+       (merge  (get-event-prop  vevent :url ))
+       ))
+
+(defn vevents->clj
+  "Given a calendar return an array of hash-maps of VEVENTs "
+  [cal]
+  (map vevent->clj (.getComponents cal)))
+
