@@ -101,16 +101,16 @@
 ;; clojure data structures
 
 (def vdate-fmt
-  "Format of dates in VEVENT in leave calendar. "
+  "Format of dates in VEVENT."
   (f/formatter :basic-date))
 
 (defn parse-cal
-  "Parse a calendar from any stream supported by clojure.java.io/input-stream"
+  "Parse a calendar from any stream supported by clojure.java.io/input-stream."
   [instream]
   (.build (CalendarBuilder.) (io/input-stream instream)))
 
 (defn cal->clj
-  "Return a hash-map representing the calendar so it can be used in clojure code without Java interop all the time"
+  "Return a hash-map representing the calendar so it can be used in clojure code without Java interop all the time."
   [cal]
   ;;TODO
   ()
@@ -120,6 +120,8 @@
 
   "Macro to look up calendar properties by translating the keyword name to the 
    corresponding Java getter() name. 
+   Note that these are _local_ times and need to be parsed as the right TZ.
+
    Returns an array with key and value.
 
    (And, yes, this is mostly to give me a reason to play with macros ;-) )"
@@ -133,7 +135,7 @@
     `(let [result# (~getter ~vevent)]
        (if result#
          (let [val# (.getValue result#)]
-           [~property (if ~date-fmt (f/parse ~date-fmt val#) val#)])))))
+           [~property (if ~date-fmt (t/from-time-zone (f/parse ~date-fmt val#) (t/default-time-zone)) val#)])))))
 
 (defn- vevent->clj
   "Turn an event into a hash-map"
