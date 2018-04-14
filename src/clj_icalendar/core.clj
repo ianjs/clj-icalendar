@@ -7,9 +7,7 @@
            (java.util Date TimeZone))
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
-            [clj-time.core :as t]
-            [clj-time.local :as l]
-            [clj-time.format :as f]
+            [java-time :as t]
             ))
 
 (defn create-cal
@@ -102,7 +100,7 @@
 
 (def vdate-fmt
   "Format of dates in VEVENT."
-  (f/formatter :basic-date))
+  (t/formatter "yyyyMMdd"))
 
 (defn parse-cal
   "Parse a calendar from any stream supported by clojure.java.io/input-stream."
@@ -120,7 +118,6 @@
 
   "Macro to look up calendar properties by translating the keyword name to the 
    corresponding Java getter() name. 
-   Note that these are _local_ times and need to be parsed as the right TZ.
 
    Returns an array with key and value.
 
@@ -135,7 +132,9 @@
     `(let [result# (~getter ~vevent)]
        (if result#
          (let [val# (.getValue result#)]
-           [~property (if ~date-fmt (t/from-time-zone (f/parse ~date-fmt val#) (t/default-time-zone)) val#)])))))
+           [~property (if ~date-fmt
+                        (t/local-date-time (t/local-date ~date-fmt val#) 0 0)
+                        val#)])))))
 
 (defn- vevent->clj
   "Turn an event into a hash-map"

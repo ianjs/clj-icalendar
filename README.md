@@ -81,6 +81,25 @@ DESCRIPTION:Spend time at vacation home.
 END:VEVENT
 END:VCALENDAR
 ```
+
+To parse in a calendar from any source supported by clojure.java.io/input-stream:
+
+``` clojure
+
+(def cal
+  (ical/parse-cal "cal.ics")))
+
+```
+
+or
+
+``` clojure
+
+(def cal
+  (ical/parse-cal "https://url.of.an/icalendar.ics")))
+
+```
+
 ## License
 
 Copyright © 2015
